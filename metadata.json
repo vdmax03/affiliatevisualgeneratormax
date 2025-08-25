@@ -1,0 +1,5 @@
+{
+  "name": "Affiliate Visual Generator",
+  "description": "An AI agent that creates affiliate visual materials from a product URL or image. It generates promotional images, marketing copy (headlines, captions, CTAs), and metadata (alt text, SEO keywords, color palette).",
+  "requestFramePermissions": []
+}
