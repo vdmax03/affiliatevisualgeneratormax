@@ -1,6 +1,13 @@
 
 export type InputType = 'url' | 'image';
 
+export interface GenerateInput {
+  productUrl?: string;
+  productImage?: File;
+  productSpec?: string;
+  includeHumanModel?: boolean;
+}
+
 export interface Product {
   name: string;
   category: string;

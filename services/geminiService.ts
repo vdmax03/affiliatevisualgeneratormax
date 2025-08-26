@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { OutputData, Product, Marketing, GeneratedImage } from '../types';
+import type { OutputData, Product, Marketing, GeneratedImage, GenerateInput } from '../types';
 
 // Helper to convert a File object to a GoogleGenAI.Part object
 const fileToGenerativePart = async (file: File) => {
@@ -45,7 +45,7 @@ const marketingSchema = {
 };
 
 export const generateAffiliateVisuals = async (
-    input: { productUrl?: string; productImage?: File; productSpec?: string },
+    input: GenerateInput,
     apiKey: string
 ): Promise<OutputData> => {
     if (!apiKey) {
@@ -327,17 +327,23 @@ export const generateAffiliateVisuals = async (
                     {
                         name: 'studio',
                         variant_note: "Tampilan bersih dan profesional yang fokus pada detail produk.",
-                        edit_prompt: `Edit gambar ini menjadi foto studio profesional. Ubah background menjadi studio fotografi dengan pencahayaan softbox, latar belakang gradien minimal. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah setting dan pencahayaan menjadi studio yang bersih dan profesional.`
+                        edit_prompt: input.includeHumanModel 
+                            ? `Edit gambar ini menjadi foto studio profesional. Ubah background menjadi studio fotografi dengan pencahayaan softbox, latar belakang gradien minimal. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah setting dan pencahayaan menjadi studio yang bersih dan profesional.`
+                            : `Edit gambar ini menjadi foto studio profesional produk saja. Ubah background menjadi studio fotografi dengan pencahayaan softbox, latar belakang gradien minimal. Hapus model manusia, fokus hanya pada produk yang sama. Hanya ubah setting dan pencahayaan menjadi studio yang bersih dan profesional.`
                     },
                     {
                         name: 'lifestyle',
                         variant_note: "Penggunaan kontekstual yang menunjukkan produk dalam suasana alami.",
-                        edit_prompt: `Edit gambar ini menjadi foto lifestyle. Ubah background menjadi setting outdoor yang relevan seperti kafe, taman, atau jalan kota. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah setting menjadi suasana lifestyle yang natural dan relatable.`
+                        edit_prompt: input.includeHumanModel
+                            ? `Edit gambar ini menjadi foto lifestyle. Ubah background menjadi setting outdoor yang relevan seperti kafe, taman, atau jalan kota. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah setting menjadi suasana lifestyle yang natural dan relatable.`
+                            : `Edit gambar ini menjadi foto lifestyle produk saja. Ubah background menjadi setting outdoor yang relevan seperti kafe, taman, atau jalan kota. Hapus model manusia, fokus hanya pada produk yang sama. Hanya ubah setting menjadi suasana lifestyle yang natural dan relatable.`
                     },
                     {
                         name: 'ugc',
                         variant_note: "Foto otentik bergaya konten kreator yang relatable.",
-                        edit_prompt: `Edit gambar ini menjadi foto bergaya UGC (User Generated Content). Ubah menjadi foto vertikal seperti di smartphone, dengan framing yang lebih dekat dan intimate. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah angle dan framing menjadi lebih personal dan relatable.`
+                        edit_prompt: input.includeHumanModel
+                            ? `Edit gambar ini menjadi foto bergaya UGC (User Generated Content). Ubah menjadi foto vertikal seperti di smartphone, dengan framing yang lebih dekat dan intimate. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah angle dan framing menjadi lebih personal dan relatable.`
+                            : `Edit gambar ini menjadi foto bergaya UGC produk saja. Ubah menjadi foto vertikal seperti di smartphone, dengan framing yang lebih dekat dan intimate. Hapus model manusia, fokus hanya pada produk yang sama. Hanya ubah angle dan framing menjadi lebih personal dan relatable.`
                     }
                 ];
 
@@ -399,17 +405,23 @@ export const generateAffiliateVisuals = async (
                     {
                         name: 'studio',
                         variant_note: "Tampilan bersih dan profesional yang fokus pada detail produk.",
-                        prompt: `Foto studio fotorealistik, model menarik dengan pose netral mengenakan atau memegang ${product.name} (${product.category}, ${product.color}, ${product.notable_features.join(', ')} terlihat jelas). Latar belakang gradien minimal, pencahayaan softbox, dynamic range tinggi, detail material yang tajam, tanpa properti yang mengganggu. Resolusi tinggi 1024x1024, produk di tengah.`
+                        prompt: input.includeHumanModel
+                            ? `Foto studio fotorealistik, model menarik dengan pose netral mengenakan atau memegang ${product.name} (${product.category}, ${product.color}, ${product.notable_features.join(', ')} terlihat jelas). Latar belakang gradien minimal, pencahayaan softbox, dynamic range tinggi, detail material yang tajam, tanpa properti yang mengganggu. Resolusi tinggi 1024x1024, produk di tengah.`
+                            : `Foto studio fotorealistik produk ${product.name} (${product.category}, ${product.color}, ${product.notable_features.join(', ')} terlihat jelas). Latar belakang gradien minimal, pencahayaan softbox, dynamic range tinggi, detail material yang tajam, tanpa properti yang mengganggu, tanpa model manusia. Resolusi tinggi 1024x1024, produk di tengah.`
                     },
                     {
                         name: 'lifestyle',
                         variant_note: "Penggunaan kontekstual yang menunjukkan produk dalam suasana alami.",
-                        prompt: `Adegan lifestyle dalam setting yang relevan dengan ${product.category}. Model menggunakan ${product.name} secara alami, dengan produk sebagai fokus. Pencahayaan alami hangat, nuansa candid. Tampilkan fitur-fiturnya tanpa halangan. Resolusi tinggi 1024x1024 portrait untuk iklan sosial media.`
+                        prompt: input.includeHumanModel
+                            ? `Adegan lifestyle dalam setting yang relevan dengan ${product.category}. Model menggunakan ${product.name} secara alami, dengan produk sebagai fokus. Pencahayaan alami hangat, nuansa candid. Tampilkan fitur-fiturnya tanpa halangan. Resolusi tinggi 1024x1024 portrait untuk iklan sosial media.`
+                            : `Adegan lifestyle dalam setting yang relevan dengan ${product.category}. Produk ${product.name} ditampilkan secara alami, dengan produk sebagai fokus. Pencahayaan alami hangat, nuansa candid. Tampilkan fitur-fiturnya tanpa halangan, tanpa model manusia. Resolusi tinggi 1024x1024 portrait untuk iklan sosial media.`
                     },
                     {
                         name: 'ugc',
                         variant_note: "Foto otentik bergaya konten kreator yang relatable.",
-                        prompt: `Foto vertikal bergaya UGC, sedikit terlihat handheld. Framing dekat, model menggunakan ${product.name}; produk menghadap kamera, fokus tajam, tone kulit alami, latar belakang indoor sederhana. Tanpa filter berat. Resolusi tinggi 1024x1024.`
+                        prompt: input.includeHumanModel
+                            ? `Foto vertikal bergaya UGC, sedikit terlihat handheld. Framing dekat, model menggunakan ${product.name}; produk menghadap kamera, fokus tajam, tone kulit alami, latar belakang indoor sederhana. Tanpa filter berat. Resolusi tinggi 1024x1024.`
+                            : `Foto vertikal bergaya UGC produk ${product.name}, sedikit terlihat handheld. Framing dekat, produk menghadap kamera, fokus tajam, latar belakang indoor sederhana. Tanpa filter berat, tanpa model manusia. Resolusi tinggi 1024x1024.`
                     }
                 ];
 

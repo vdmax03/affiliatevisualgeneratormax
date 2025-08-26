@@ -3,7 +3,7 @@ import type { InputType } from '../types';
 import { Icon } from './Icon';
 
 interface InputFormProps {
-  onGenerate: (inputType: InputType, value: string | File, productSpec?: string) => void;
+  onGenerate: (inputType: InputType, value: string | File, productSpec?: string, includeHumanModel?: boolean) => void;
   isLoading: boolean;
   apiKey: string;
   onApiKeyChange: (key: string) => void;
@@ -15,6 +15,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onGenerate, isLoading, api
   const [productImage, setProductImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [productSpec, setProductSpec] = useState<string>('');
+  const [includeHumanModel, setIncludeHumanModel] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,9 +45,9 @@ export const InputForm: React.FC<InputFormProps> = ({ onGenerate, isLoading, api
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputType === 'url' && productUrl) {
-      onGenerate('url', productUrl, productSpec);
+      onGenerate('url', productUrl, productSpec, includeHumanModel);
     } else if (inputType === 'image' && productImage) {
-      onGenerate('image', productImage, productSpec);
+      onGenerate('image', productImage, productSpec, includeHumanModel);
     }
   };
 
@@ -160,6 +161,31 @@ export const InputForm: React.FC<InputFormProps> = ({ onGenerate, isLoading, api
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Tentukan produk mana yang ingin difokuskan jika ada beberapa item dalam gambar/URL
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Opsi Model
+          </label>
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={includeHumanModel}
+                onChange={(e) => setIncludeHumanModel(e.target.checked)}
+                className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-secondary focus:ring-2"
+              />
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                Sertakan model manusia dalam gambar
+              </span>
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {includeHumanModel 
+              ? "Gambar akan menampilkan produk yang dipakai oleh model manusia" 
+              : "Gambar akan menampilkan produk saja tanpa model manusia"
+            }
           </p>
         </div>
         

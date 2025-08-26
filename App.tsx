@@ -12,7 +12,7 @@ const App: React.FC = () => {
   const [results, setResults] = useState<OutputData | null>(null);
   const [apiKey, setApiKey] = useState<string>('');
 
-  const handleGenerate = useCallback(async (inputType: InputType, value: string | File, productSpec?: string) => {
+  const handleGenerate = useCallback(async (inputType: InputType, value: string | File, productSpec?: string, includeHumanModel?: boolean) => {
     setIsLoading(true);
     setError(null);
     setResults(null);
@@ -23,7 +23,8 @@ const App: React.FC = () => {
       }
       const input = {
         [inputType === 'url' ? 'productUrl' : 'productImage']: value,
-        productSpec: productSpec || undefined
+        productSpec: productSpec || undefined,
+        includeHumanModel: includeHumanModel ?? true
       };
       if (!value) {
         throw new Error('Harap masukkan URL produk atau unggah gambar.');
