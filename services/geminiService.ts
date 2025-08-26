@@ -268,58 +268,14 @@ export const generateAffiliateVisuals = async (
             }
         }
 
-        // --- 3. Generate Images (Optional - requires billing) ---
+        // --- 3. Generate Images (Two-stage process) ---
+        // Stage 1: Edit with Gemini 2.0 Flash Exp Image Generation
+        // Stage 2: Generate final with Imagen 4
         let images: GeneratedImage[] = [];
         
-        try {
-            const imageScenarios = [
-                {
-                    name: 'studio',
-                    variant_note: "Tampilan bersih dan profesional yang fokus pada detail produk.",
-                    prompt: `Foto studio fotorealistik, model menarik dengan pose netral mengenakan atau memegang ${product.name} (${product.category}, ${product.color}, ${product.notable_features.join(', ')} terlihat jelas). Latar belakang gradien minimal, pencahayaan softbox, dynamic range tinggi, detail material yang tajam, tanpa properti yang mengganggu. Resolusi tinggi 1024x1024, produk di tengah.`
-                },
-                {
-                    name: 'lifestyle',
-                    variant_note: "Penggunaan kontekstual yang menunjukkan produk dalam suasana alami.",
-                    prompt: `Adegan lifestyle dalam setting yang relevan dengan ${product.category}. Model menggunakan ${product.name} secara alami, dengan produk sebagai fokus. Pencahayaan alami hangat, nuansa candid. Tampilkan fitur-fiturnya tanpa halangan. Resolusi tinggi 1024x1024 portrait untuk iklan sosial media.`
-                },
-                {
-                    name: 'ugc',
-                    variant_note: "Foto otentik bergaya konten kreator yang relatable.",
-                    prompt: `Foto vertikal bergaya UGC, sedikit terlihat handheld. Framing dekat, model menggunakan ${product.name}; produk menghadap kamera, fokus tajam, tone kulit alami, latar belakang indoor sederhana. Tanpa filter berat. Resolusi tinggi 1024x1024.`
-                }
-            ];
-
-            const imagePromises = imageScenarios.map(scenario => 
-                ai.models.generateImages({
-                    model: 'imagen-4.0-generate-001',
-                    prompt: `${scenario.prompt} --ar 1:1 --no extra logos, no text overlay, no watermark`,
-                    config: {
-                        numberOfImages: 1,
-                        outputMimeType: 'image/jpeg',
-                        aspectRatio: '1:1',
-                    },
-                })
-            );
-
-            console.log("Sending requests to Gemini API for image generation...");
-            const imageResults = await Promise.all(imagePromises);
-            console.log("Image generation responses received");
-            console.log("Number of image results:", imageResults.length);
-
-            images = imageResults.map((res, i) => {
-                console.log(`Processing image ${i + 1}/${imageResults.length} for scenario: ${imageScenarios[i].name}`);
-                return {
-                    scenario: imageScenarios[i].name as 'studio' | 'lifestyle' | 'ugc',
-                    prompt_used: imageScenarios[i].prompt,
-                    variant_note: imageScenarios[i].variant_note,
-                    path_or_b64: `data:image/jpeg;base64,${res.generatedImages[0].image.imageBytes}`
-                };
-            });
-        } catch (imageError) {
-            console.warn("Image generation failed (requires billing):", imageError);
-            // Create placeholder images with prompts for manual generation
-            images = [
+        // Helper function to create placeholder images
+        const createPlaceholderImages = (product: Product): GeneratedImage[] => {
+            return [
                 {
                     scenario: 'studio' as const,
                     prompt_used: `Foto studio fotorealistik dari ${product.name} (${product.category}, ${product.color})`,
@@ -360,6 +316,136 @@ export const generateAffiliateVisuals = async (
                     `)}`
                 }
             ];
+        };
+        
+        if (input.productImage && input.productImage instanceof File) {
+            try {
+                const imagePart = await fileToGenerativePart(input.productImage);
+                
+                // Stage 1: Edit original image with Gemini 2.5 Flash
+                const editScenarios = [
+                    {
+                        name: 'studio',
+                        variant_note: "Tampilan bersih dan profesional yang fokus pada detail produk.",
+                        edit_prompt: `Edit gambar ini menjadi foto studio profesional. Ubah background menjadi studio fotografi dengan pencahayaan softbox, latar belakang gradien minimal. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah setting dan pencahayaan menjadi studio yang bersih dan profesional.`
+                    },
+                    {
+                        name: 'lifestyle',
+                        variant_note: "Penggunaan kontekstual yang menunjukkan produk dalam suasana alami.",
+                        edit_prompt: `Edit gambar ini menjadi foto lifestyle. Ubah background menjadi setting outdoor yang relevan seperti kafe, taman, atau jalan kota. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah setting menjadi suasana lifestyle yang natural dan relatable.`
+                    },
+                    {
+                        name: 'ugc',
+                        variant_note: "Foto otentik bergaya konten kreator yang relatable.",
+                        edit_prompt: `Edit gambar ini menjadi foto bergaya UGC (User Generated Content). Ubah menjadi foto vertikal seperti di smartphone, dengan framing yang lebih dekat dan intimate. Pertahankan model, pakaian, dan produk yang sama. Hanya ubah angle dan framing menjadi lebih personal dan relatable.`
+                    }
+                ];
+
+                console.log("Stage 1: Editing original image with Gemini 2.0 Flash Exp Image Generation...");
+                const editPromises = editScenarios.map(scenario => 
+                    ai.models.generateContent({
+                        model: "gemini-2.0-flash-exp-image-generation",
+                        contents: [
+                            { role: "user", parts: [{ text: scenario.edit_prompt }, imagePart] }
+                        ],
+                        config: {
+                            responseMimeType: "image/jpeg",
+                        }
+                    })
+                );
+
+                const editResults = await Promise.all(editPromises);
+                console.log("Image editing completed with Gemini 2.0 Flash Exp Image Generation");
+
+                // Stage 2: Generate final images with Imagen 4
+                console.log("Stage 2: Generating final images with Imagen 4...");
+                const finalImagePromises = editResults.map((editResult, i) => {
+                    const scenario = editScenarios[i];
+                    const editedImageBase64 = editResult.text; // This should be the edited image
+                    
+                    // Convert edited image back to base64 for Imagen 4
+                    const finalPrompt = `Berdasarkan gambar yang diedit ini, buat versi final yang lebih profesional dan siap untuk marketing. Pertahankan semua elemen dari gambar yang diedit, tapi tingkatkan kualitas visual, pencahayaan, dan detail. Produk: ${product.name} (${product.category}, ${product.color}).`;
+                    
+                    return ai.models.generateImages({
+                        model: 'imagen-4.0-generate-001',
+                        prompt: `${finalPrompt} --ar 1:1 --no extra logos, no text overlay, no watermark`,
+                        config: {
+                            numberOfImages: 1,
+                            outputMimeType: 'image/jpeg',
+                            aspectRatio: '1:1',
+                        },
+                    });
+                });
+
+                const finalImageResults = await Promise.all(finalImagePromises);
+                console.log("Final image generation completed with Imagen 4");
+
+                images = finalImageResults.map((res, i) => {
+                    console.log(`Processing final image ${i + 1}/${finalImageResults.length} for scenario: ${editScenarios[i].name}`);
+                    return {
+                        scenario: editScenarios[i].name as 'studio' | 'lifestyle' | 'ugc',
+                        prompt_used: editScenarios[i].edit_prompt,
+                        variant_note: editScenarios[i].variant_note,
+                        path_or_b64: `data:image/jpeg;base64,${res.generatedImages[0].image.imageBytes}`
+                    };
+                });
+
+            } catch (imageError) {
+                console.warn("Two-stage image generation failed:", imageError);
+                // Fallback to placeholder images
+                images = createPlaceholderImages(product);
+            }
+        } else {
+            // If no input image, use direct Imagen 4 generation
+            try {
+                const imageScenarios = [
+                    {
+                        name: 'studio',
+                        variant_note: "Tampilan bersih dan profesional yang fokus pada detail produk.",
+                        prompt: `Foto studio fotorealistik, model menarik dengan pose netral mengenakan atau memegang ${product.name} (${product.category}, ${product.color}, ${product.notable_features.join(', ')} terlihat jelas). Latar belakang gradien minimal, pencahayaan softbox, dynamic range tinggi, detail material yang tajam, tanpa properti yang mengganggu. Resolusi tinggi 1024x1024, produk di tengah.`
+                    },
+                    {
+                        name: 'lifestyle',
+                        variant_note: "Penggunaan kontekstual yang menunjukkan produk dalam suasana alami.",
+                        prompt: `Adegan lifestyle dalam setting yang relevan dengan ${product.category}. Model menggunakan ${product.name} secara alami, dengan produk sebagai fokus. Pencahayaan alami hangat, nuansa candid. Tampilkan fitur-fiturnya tanpa halangan. Resolusi tinggi 1024x1024 portrait untuk iklan sosial media.`
+                    },
+                    {
+                        name: 'ugc',
+                        variant_note: "Foto otentik bergaya konten kreator yang relatable.",
+                        prompt: `Foto vertikal bergaya UGC, sedikit terlihat handheld. Framing dekat, model menggunakan ${product.name}; produk menghadap kamera, fokus tajam, tone kulit alami, latar belakang indoor sederhana. Tanpa filter berat. Resolusi tinggi 1024x1024.`
+                    }
+                ];
+
+                const imagePromises = imageScenarios.map(scenario => 
+                    ai.models.generateImages({
+                        model: 'imagen-4.0-generate-001',
+                        prompt: `${scenario.prompt} --ar 1:1 --no extra logos, no text overlay, no watermark`,
+                        config: {
+                            numberOfImages: 1,
+                            outputMimeType: 'image/jpeg',
+                            aspectRatio: '1:1',
+                        },
+                    })
+                );
+
+                console.log("Sending requests to Gemini API for direct image generation...");
+                const imageResults = await Promise.all(imagePromises);
+                console.log("Image generation responses received");
+                console.log("Number of image results:", imageResults.length);
+
+                images = imageResults.map((res, i) => {
+                    console.log(`Processing image ${i + 1}/${imageResults.length} for scenario: ${imageScenarios[i].name}`);
+                    return {
+                        scenario: imageScenarios[i].name as 'studio' | 'lifestyle' | 'ugc',
+                        prompt_used: imageScenarios[i].prompt,
+                        variant_note: imageScenarios[i].variant_note,
+                        path_or_b64: `data:image/jpeg;base64,${res.generatedImages[0].image.imageBytes}`
+                    };
+                });
+            } catch (imageError) {
+                console.warn("Direct image generation failed:", imageError);
+                images = createPlaceholderImages(product);
+            }
         }
 
         // --- 4. Assemble and Return ---
