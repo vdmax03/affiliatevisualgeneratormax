@@ -83,7 +83,7 @@ export const generateAffiliateVisuals = async (
             
             console.log("Sending request to Gemini API for product analysis with image...");
             productResponse = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: "gemini-2.0-flash-exp-image-generation",
                 contents: [
                     { role: "user", parts: [{ text: prompt }, imagePart] }
                 ],
@@ -101,7 +101,7 @@ export const generateAffiliateVisuals = async (
             
             console.log("Sending request to Gemini API for product analysis with URL...");
             productResponse = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: "gemini-2.0-flash-exp-image-generation",
                 contents: [
                     { role: "user", parts: [{ text: prompt }] }
                 ],
@@ -173,7 +173,7 @@ export const generateAffiliateVisuals = async (
         
         console.log("Sending request to Gemini API for marketing copy...");
         const marketingResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.0-flash-exp-image-generation",
             contents: [
                 { role: "user", parts: [{ text: marketingPrompt }] }
             ],
